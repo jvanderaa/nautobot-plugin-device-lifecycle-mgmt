@@ -20,20 +20,20 @@ def post_migrate_create_relationships(sender, apps, **kwargs):  # pylint: disabl
 
     for relationship_dict in [
         {
-            "name": "Software on Device",
-            "slug": "device_soft",
+            "name": "Software to Device",
+            "slug": "software-to-device",
             "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
             "source_type": ContentType.objects.get_for_model(SoftwareLCM),
-            "source_label": "Running on Devices",
+            "source_label": "Devices",
             "destination_type": ContentType.objects.get_for_model(_Device),
             "destination_label": "Software Version",
         },
         {
-            "name": "Software on InventoryItem",
-            "slug": "inventory_item_soft",
+            "name": "Software to InventoryItem",
+            "slug": "software-to-inventoryitem",
             "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
             "source_type": ContentType.objects.get_for_model(SoftwareLCM),
-            "source_label": "Running on Inventory Items",
+            "source_label": "InventoryItems",
             "destination_type": ContentType.objects.get_for_model(InventoryItem),
             "destination_label": "Software Version",
         },
@@ -62,19 +62,19 @@ def post_migrate_create_relationships(sender, apps, **kwargs):  # pylint: disabl
 @receiver(pre_delete, sender="nautobot_device_lifecycle_mgmt.SoftwareLCM")
 def delete_softwarelcm_relationships(sender, instance, **kwargs):  # pylint: disable=unused-argument
     """Delete all SoftwareLCM relationships to Device and InventoryItem objects."""
-    soft_relationships = Relationship.objects.filter(slug__in=("device_soft", "inventory_item_soft"))
+    soft_relationships = Relationship.objects.filter(slug__in=("software-to-device", "software-to-inventoryitem"))
     RelationshipAssociation.objects.filter(relationship__in=soft_relationships, source_id=instance.pk).delete()
 
 
 @receiver(pre_delete, sender="dcim.Device")
 def delete_device_software_relationship(sender, instance, **kwargs):  # pylint: disable=unused-argument
     """Delete Device relationship to SoftwareLCM object."""
-    soft_relationships = Relationship.objects.filter(slug__in=("device_soft", "inventory_item_soft"))
+    soft_relationships = Relationship.objects.filter(slug__in=("software-to-device", "software-to-inventoryitem"))
     RelationshipAssociation.objects.filter(relationship__in=soft_relationships, destination_id=instance.pk).delete()
 
 
 @receiver(pre_delete, sender="dcim.InventoryItem")
 def delete_inventory_item_software_relationship(sender, instance, **kwargs):  # pylint: disable=unused-argument
     """Delete InventoryItem relationship to SoftwareLCM object."""
-    soft_relationships = Relationship.objects.filter(slug__in=("device_soft", "inventory_item_soft"))
+    soft_relationships = Relationship.objects.filter(slug__in=("software-to-device", "software-to-inventoryitem"))
     RelationshipAssociation.objects.filter(relationship__in=soft_relationships, destination_id=instance.pk).delete()

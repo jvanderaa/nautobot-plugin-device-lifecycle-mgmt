@@ -70,6 +70,16 @@
                     </td>
                 </tr>
                 <tr>
+                    <td>Assigned To</td>
+                    <td>
+                        {% if object.assigned_to %}
+                            <a href="{{ object.assigned_to.get_absolute_url }}">{{ object.assigned_to }}</a>
+                        {% else %}
+                            &mdash;
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
                     <td>Valid Start</td>
                     <td>{{ object.start }}</td>
                 </tr>
@@ -88,77 +98,6 @@
                     </td>
                 </tr>
             </table>
-        </div>
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <strong>Assignments</strong>
-            </div>
-                <table class="table table-hover panel-body attr-table">
-                    <tr>
-                        <td>
-                            Device Types
-                        </td>
-                        <td>
-                            {% if object.device_types.all %}
-                            <ul>
-                                {% for device_type in object.device_types.all %}
-                                    <li><a href="{{ device_type.get_absolute_url }}">{{ device_type }}</a></li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                                <span class="text-muted">None</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            Devices
-                        </td>
-                        <td>
-                            {% if object.devices.all %}
-                            <ul>
-                                {% for device in object.devices.all %}
-                                    <li><a href="{{ device.get_absolute_url }}">{{ device }}</a></li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                                <span class="text-muted">None</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            InventoryItems
-                        </td>
-                        <td>
-                            {% if object.inventory_items.all %}
-                            <ul>
-                                {% for inventory_item in object.inventory_items.all %}
-                                    <li><a href="{{ inventory_item.get_absolute_url }}">{{ inventory_item }}</a></li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                                <span class="text-muted">None</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            Roles
-                        </td>
-                        <td>
-                            {% if object.roles.all %}
-                            <ul>
-                                {% for role in object.roles.all %}
-                                    <li><a href="{{ role.get_absolute_url }}">{{ role }}</a></li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                                <span class="text-muted">None</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                </table>
         </div>
         {% include 'inc/custom_fields_panel.html' %}
         {% include 'inc/relationships_panel.html' %}

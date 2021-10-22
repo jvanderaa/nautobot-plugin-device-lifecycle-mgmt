@@ -1,11 +1,14 @@
 """GraphQL implementation for the Device LifeCycle Management plugin."""
+import graphene
+
 from nautobot.extras.graphql.types import DjangoObjectType
-from nautobot_device_lifecycle_mgmt.models import HardwareLCM, ContractLCM, ProviderLCM, ContactLCM
+from nautobot_device_lifecycle_mgmt.models import HardwareLCM, ContractLCM, ProviderLCM, ContactLCM, ValidatedSoftwareLCM
 from nautobot_device_lifecycle_mgmt.filters import (
     HardwareLCMFilterSet,
     ContractLCMFilterSet,
     ProviderLCMFilterSet,
     ContactLCMFilterSet,
+    ValidatedSoftwareLCMFilterSet,
 )
 
 
@@ -48,10 +51,22 @@ class ContactLCMType(DjangoObjectType):
         model = ContactLCM
         filterset_class = ContactLCMFilterSet
 
+class ValidatedSoftwareLCMType(DjangoObjectType):
+    """Graphql Type Object for the ValidatedSoftwareLCM model."""
+    
+    valid = graphene.Boolean()
+
+    class Meta:
+        """Metadata magic method for the ValidatedSoftwareLCM."""
+
+        model = ValidatedSoftwareLCM
+        filterset_class = ValidatedSoftwareLCMFilterSet
+
 
 graphql_types = [
     HardwareLCMType,
     ContractLCMType,
     ProviderLCMType,
     ContactLCMType,
+    ValidatedSoftwareLCMType,
 ]

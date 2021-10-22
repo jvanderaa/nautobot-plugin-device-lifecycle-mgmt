@@ -10,6 +10,13 @@ from nautobot.extras.plugins import PluginTemplateExtension
 from nautobot.dcim.models import InventoryItem
 from .models import HardwareLCM, SoftwareLCM, ValidatedSoftwareLCM
 from .tables import ValidatedSoftwareLCMTable
+from .compute_software import (
+    DeviceTypeValidatedSoftware,
+    DeviceValidatedSoftware,
+    InventoryItemValidatedSoftware,
+    get_software,
+    validate_software,
+)
 
 
 class DeviceTypeHWLCM(PluginTemplateExtension, metaclass=ABCMeta):
@@ -66,7 +73,7 @@ class InventoryItemHWLCM(PluginTemplateExtension, metaclass=ABCMeta):
         )
 
 
-class ValidatedSoftwareLCMListMixIn:
+class ValidatedSoftwareLCMListMixInOld:
     """Mixin to add `validated_soft_list` and `validated_soft_table` properties."""
 
     @property
@@ -106,6 +113,51 @@ class ValidatedSoftwareLCMListMixIn:
         )
 
 
+class ValidatedSoftwareLCMListMixIn:
+    """Mixin to add `validated_soft_list` and `validated_soft_table` properties."""
+
+    def get_validated_soft_list(self):
+        """Property returning list of validated software linked to the object."""
+        qfilters = [Q(**valid_soft_filter) for valid_soft_filter in self.valid_soft_filters]
+
+        log.error("Filters: %s" % qfilters)
+
+        # validsoft_list = ValidatedSoftwareLCM.objects.filter(qfilters.pop())
+        # for qfilter in qfilters:
+        #     validsoft_list = validsoft_list.union(ValidatedSoftwareLCM.objects.filter(qfilter))
+
+        validsoft_list = ValidatedSoftwareLCM.objects.filter(qfilters.pop())
+        for qfilter in qfilters:
+            validsoft_list = validsoft_list | ValidatedSoftwareLCM.objects.filter(qfilter)
+
+        # valid_soft_filter = qfilters.pop()
+        # for qfilter in qfilters:
+        #    valid_soft_filter |= qfilter
+
+        log.error("Final filter: %s" % validsoft_list)
+        # log.error("Final filter: %s" % valid_soft_filter)
+
+        # validsoft_list = ValidatedSoftwareLCM.objects.filter(valid_soft_filter)
+        if not validsoft_list.exists():
+            return None
+
+        return validsoft_list.distinct()
+
+    def get_validated_soft_table(self):
+        """Property returning table of validated software linked to the object."""
+        if not self.validated_soft_list:
+            return None
+
+        return ValidatedSoftwareLCMTable(
+            list(self.validated_soft_list),
+            orderable=False,
+            exclude=(
+                "name",
+                "actions",
+            ),
+        )
+
+
 class SoftwareLCMMixIn:
     """Mixin to add `software` and `valid_software` properties."""
 
@@ -130,12 +182,20 @@ class SoftwareLCMMixIn:
         if not (self.validated_soft_list and self.software):
             return False
 
-        soft_valid_obj = self.validated_soft_list.filter(software_id=self.software)
-        return soft_valid_obj.exists() and soft_valid_obj[0].valid
+        currently_valid_objects = [
+            soft_val_obj
+            for soft_val_obj in self.validated_soft_list.filter(software_id=self.software)
+            if soft_val_obj.valid
+        ]
+        # TODO: Below is invalid. We can have a validated software object that is not currently valid
+        return len(currently_valid_objects) > 0
+        # return soft_valid_obj.exists() and soft_valid_obj[0].valid
 
 
 class DeviceSoftwareLCMAndValidatedSoftwareLCM(
-    PluginTemplateExtension, ValidatedSoftwareLCMListMixIn, SoftwareLCMMixIn
+    PluginTemplateExtension,
+    DeviceValidatedSoftware
+    # ValidatedSoftwareLCMListMixIn, SoftwareLCMMixIn
 ):  # pylint: disable=abstract-method
     """Class to add table for SoftwareLCM and ValidatedSoftwareLCM related to device."""
 
@@ -144,11 +204,11 @@ class DeviceSoftwareLCMAndValidatedSoftwareLCM(
     def __init__(self, context):
         """Init setting up the DeviceSoftwareLCMAndValidatedSoftwareLCM object."""
         super().__init__(context)
-        self.soft_relation_name = "device_soft"
-        self.obj_model = Device
-        self.parent_obj = self.context["object"]
-        self.dst_obj_id = self.parent_obj.pk
-        self.valid_soft_filters = (("device", self.parent_obj.pk), ("devicetype", self.parent_obj.device_type.pk))
+        self.item_obj = self.context["object"]
+        self.validated_soft_list = self.get_validated_soft_list()
+        self.validated_soft_table = self.get_validated_soft_table()
+        self.software = get_software("device_soft", Device, self.item_obj.pk)
+        self.valid_software = validate_software(self.software, self.validated_soft_list)
 
     def right_page(self):
         """Display table on right side of page."""
@@ -165,7 +225,9 @@ class DeviceSoftwareLCMAndValidatedSoftwareLCM(
 
 
 class InventoryItemSoftwareLCMAndValidatedSoftwareLCM(
-    PluginTemplateExtension, ValidatedSoftwareLCMListMixIn, SoftwareLCMMixIn
+    PluginTemplateExtension,
+    InventoryItemValidatedSoftware
+    #ValidatedSoftwareLCMListMixIn, SoftwareLCMMixIn
 ):  # pylint: disable=abstract-method
     """Class to add table for SoftwareLCM and ValidatedSoftwareLCM related to inventory item."""
 
@@ -174,11 +236,11 @@ class InventoryItemSoftwareLCMAndValidatedSoftwareLCM(
     def __init__(self, context):
         """Init setting up the InventoryItemSoftwareLCMAndValidatedSoftwareLCM object."""
         super().__init__(context)
-        self.soft_relation_name = "inventory_item_soft"
-        self.obj_model = InventoryItem
-        self.parent_obj = self.context["object"]
-        self.dst_obj_id = self.parent_obj.pk
-        self.valid_soft_filters = (("inventoryitem", self.parent_obj.pk),)
+        self.item_obj = self.context["object"]
+        self.validated_soft_list = self.get_validated_soft_list()
+        self.validated_soft_table = self.get_validated_soft_table()
+        self.software = get_software("inventory_item_soft", InventoryItem, self.item_obj.pk)
+        self.valid_software = validate_software(self.software, self.validated_soft_list)
 
     def right_page(self):
         """Display table on right side of page."""
@@ -195,7 +257,9 @@ class InventoryItemSoftwareLCMAndValidatedSoftwareLCM(
 
 
 class DeviceTypeValidatedSoftwareLCM(
-    PluginTemplateExtension, ValidatedSoftwareLCMListMixIn
+    PluginTemplateExtension, 
+    # ValidatedSoftwareLCMListMixIn
+    DeviceTypeValidatedSoftware
 ):  # pylint: disable=abstract-method
     """Class to add table for ValidatedSoftwareLCM related to device type."""
 
@@ -204,8 +268,9 @@ class DeviceTypeValidatedSoftwareLCM(
     def __init__(self, context):
         """Init setting up the DeviceTypeValidatedSoftwareLCM object."""
         super().__init__(context)
-        self.parent_obj = self.context["object"]
-        self.valid_soft_filters = (("devicetype", self.parent_obj.pk),)
+        self.item_obj = self.context["object"]
+        self.validated_soft_list = self.get_validated_soft_list()
+        self.validated_soft_table = self.get_validated_soft_table()
 
     def right_page(self):
         """Display table on right side of page."""

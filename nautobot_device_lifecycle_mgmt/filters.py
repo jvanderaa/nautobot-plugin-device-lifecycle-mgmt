@@ -13,6 +13,7 @@ from nautobot_device_lifecycle_mgmt.models import (
     ProviderLCM,
     ContactLCM,
 )
+from nautobot_device_lifecycle_mgmt.compute_software import DeviceValidatedSoftware
 
 
 class HardwareLCMFilterSet(django_filters.FilterSet):
@@ -142,8 +143,8 @@ class ValidatedSoftwareLCMFilterSet(django_filters.FilterSet):
         label="Software",
     )
     device_name = django_filters.CharFilter(method="device", label="Device Name")
-    device_id = django_filters.CharFilter(method="device", label="Device ID")
-    # expired = django_filters.BooleanFilter(method="expired_search", label="Expired")
+    device_id = django_filters.CharFilter(method="device", label="Device ID")    
+    currently_valid = django_filters.BooleanFilter(method="currently_valid_search", label="Currently valid")
 
     class Meta:
         """Meta attributes for filter."""
@@ -167,11 +168,21 @@ class ValidatedSoftwareLCMFilterSet(django_filters.FilterSet):
         qs_filter = Q(start__icontains=value) | Q(end__icontains=value)
         return queryset.filter(qs_filter)
 
+    def currently_valid_search(self, queryset, name, value):  # pylint: disable=unused-argument, no-self-use
+        """Perform the currently_valid_search search."""
+        print("Filter ran")       
+        today = datetime.date.today()
+        if value == True:
+            qs_filter = Q(start__lte=today, end=None) | Q(start__lte=today, end__gte=today)
+        else:
+            qs_filter = Q(start__gte=today) | Q(end__lte=today)
+        return queryset.filter(qs_filter)
+
     def device(self, queryset, name, value):  # pylint: disable=no-self-use
         """Search validated software list for a given device."""
         value = value.strip()
         if not value:
-            return queryset
+            return queryset        
 
         if name == "device_name":
             devices = Device.objects.filter(name=value)
@@ -183,15 +194,10 @@ class ValidatedSoftwareLCMFilterSet(django_filters.FilterSet):
         if devices.count() != 1:
             return queryset.none()
 
-        device = devices.first()
-        valid_soft_filter = Q(
-            assigned_to_content_type=ContentType.objects.get(app_label="dcim", model="device"),
-            assigned_to_object_id=device.pk,
-        ) | Q(
-            assigned_to_content_type=ContentType.objects.get(app_label="dcim", model="devicetype"),
-            assigned_to_object_id=device.device_type.pk,
-        )
-        return ValidatedSoftwareLCM.objects.filter(valid_soft_filter)
+        device = devices.first()        
+        dev_validated_soft = DeviceValidatedSoftware(device)
+
+        return dev_validated_soft.get_validated_soft_combined_query_set().distinct()
 
 
 class ContractLCMFilterSet(django_filters.FilterSet):

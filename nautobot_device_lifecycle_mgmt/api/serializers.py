@@ -168,20 +168,6 @@ class ValidatedSoftwareLCMSerializer(
     )
     software = NestedSoftwareLCMSerializer()
 
-    assigned_to_content_type = ContentTypeField(
-        queryset=ContentType.objects.filter(
-            Q(
-                app_label="dcim",
-                model__in=(
-                    "device",
-                    "devicetype",
-                    "inventoryitem",
-                ),
-            )
-        ),
-    )
-    assigned_to = serializers.SerializerMethodField(read_only=True)
-
     class Meta:
         """Meta attributes."""
 
@@ -190,9 +176,10 @@ class ValidatedSoftwareLCMSerializer(
             "id",
             "url",
             "software",
-            "assigned_to_content_type",
-            "assigned_to_object_id",
-            "assigned_to",
+            "devices",
+            "device_types",
+            "roles",
+            "inventory_items",
             "start",
             "end",
             "preferred",
@@ -201,11 +188,3 @@ class ValidatedSoftwareLCMSerializer(
             "tags",
         ]
 
-    @swagger_serializer_method(serializer_or_field=serializers.DictField)
-    def get_assigned_to(self, obj):
-        """Serializer method for 'assigned_to' GenericForeignKey field."""
-        if obj.assigned_to is None:
-            return None
-        serializer = get_serializer_for_model(obj.assigned_to, prefix="Nested")
-        context = {"request": self.context["request"]}
-        return serializer(obj.assigned_to, context=context).data

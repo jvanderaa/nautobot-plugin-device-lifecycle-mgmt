@@ -1,9 +1,7 @@
 """Django models for the LifeCycle Management plugin."""
 
-from datetime import datetime
+from datetime import datetime, date
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
 from django.urls import reverse
@@ -223,7 +221,7 @@ class SoftwareLCM(PrimaryModel):
     "custom_links",
     "custom_validators",
     "export_templates",
-    "graphql",
+    #"graphql",
     "relationships",
     "statuses",
     "webhooks",
@@ -231,30 +229,21 @@ class SoftwareLCM(PrimaryModel):
 class ValidatedSoftwareLCM(PrimaryModel):
     """ValidatedSoftwareLCM model."""
 
-    software = models.ForeignKey(to="SoftwareLCM", on_delete=models.CASCADE, verbose_name="Software Version")
-    assigned_to_content_type = models.ForeignKey(
-        to=ContentType,
-        limit_choices_to=Q(
-            app_label="dcim",
-            model__in=(
-                "device",
-                "devicetype",
-                "inventoryitem",
-            ),
-        ),
-        on_delete=models.PROTECT,
-        related_name="+",
-    )
-    assigned_to_object_id = models.UUIDField()
-    assigned_to = GenericForeignKey(ct_field="assigned_to_content_type", fk_field="assigned_to_object_id")
+    software = models.ForeignKey(to="SoftwareLCM", on_delete=models.CASCADE, verbose_name="Software Version")    
+    device_types = models.ManyToManyField(to="dcim.DeviceType", related_name="+", blank=True)
+    devices = models.ManyToManyField(to="dcim.Device", related_name="+", blank=True)
+    inventory_items = models.ManyToManyField(to="dcim.InventoryItem", related_name="+", blank=True)
+    roles = models.ManyToManyField(to="dcim.DeviceRole", related_name="+", blank=True)
     start = models.DateField(verbose_name="Valid Since")
     end = models.DateField(verbose_name="Valid Until", blank=True, null=True)
     preferred = models.BooleanField(verbose_name="Preferred Version", default=False)
 
     csv_headers = [
         "software",
-        "assigned_to_content_type",
-        "assigned_to_object_id",
+        "device_types",
+        "devices",
+        "inventory_items",
+        "roles",
         "start",
         "end",
         "preferred",
@@ -265,7 +254,6 @@ class ValidatedSoftwareLCM(PrimaryModel):
 
         verbose_name = "Validated Software"
         ordering = ("software", "preferred", "start")
-        unique_together = ("software", "assigned_to_content_type", "assigned_to_object_id")
 
     def __str__(self):
         """String representation of ValidatedSoftwareLCM."""
@@ -278,8 +266,8 @@ class ValidatedSoftwareLCM(PrimaryModel):
 
     @property
     def valid(self):
-        """Return True or False if software is currently valid."""
-        today = datetime.today().date()
+        """Return True if software is currently valid, else return False."""
+        today = date.today()
         if self.end:
             return self.end >= today > self.start
 
@@ -289,8 +277,10 @@ class ValidatedSoftwareLCM(PrimaryModel):
         """Return fields for bulk view."""
         return (
             self.software.id,
-            self.assigned_to_content_type.model,
-            self.assigned_to_object_id,
+            self.device_types,
+            self.devices,
+            self.inventory_items,
+            self.roles,
             self.start,
             self.end,
             self.preferred,
